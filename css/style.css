@@ -1,0 +1,460 @@
+:root {
+  color-scheme: dark;
+  --bg: #05070d;
+  --panel: rgba(8, 12, 25, 0.68);
+  --cyan: #36f5ff;
+  --pink: #ff4fc3;
+  --gold: #ffd56a;
+  --violet: #8b6dff;
+  --text: #f5fbff;
+  --muted: #9eb4ca;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Rajdhani", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(54, 245, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 79, 195, 0.035) 1px, transparent 1px);
+  background-size: 58px 58px;
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+}
+
+#app,
+#sceneRoot {
+  position: fixed;
+  inset: 0;
+}
+
+#sceneRoot canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.status-panel,
+.camera-panel,
+.gesture-hints,
+.photo-frame {
+  position: fixed;
+  z-index: 5;
+  border: 1px solid rgba(54, 245, 255, 0.58);
+  background: var(--panel);
+  box-shadow:
+    0 0 18px rgba(54, 245, 255, 0.16),
+    inset 0 0 22px rgba(255, 79, 195, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.photo-showcase {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(74px) scale(0.34);
+  transition:
+    opacity 340ms ease,
+    transform 620ms cubic-bezier(0.18, 0.88, 0.22, 1.08);
+}
+
+.cake-pendants {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: min(690px, 59vw);
+  height: min(480px, 52vh);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -42%) scale(0.94);
+  transition:
+    opacity 380ms ease,
+    transform 520ms cubic-bezier(0.18, 0.88, 0.22, 1.08);
+}
+
+.cake-pendants.is-active {
+  opacity: 0.42;
+  transform: translate(-50%, -40%) scale(1);
+}
+
+.cake-pendants.is-background {
+  opacity: 0.12;
+  transform: translate(-50%, -40%) scale(0.9);
+}
+
+.cake-pendant {
+  position: absolute;
+  width: clamp(16px, 2vw, 28px);
+  aspect-ratio: 1;
+  padding: 2px;
+  border: 1px solid rgba(255, 223, 106, 0.64);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.9), transparent 18%),
+    rgba(255, 223, 106, 0.74);
+  box-shadow:
+    0 0 7px rgba(255, 213, 106, 0.16),
+    0 4px 9px rgba(0, 0, 0, 0.22);
+  transform: translate(-50%, -50%) rotate(var(--tilt));
+  animation: pendantSway 3.2s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.cake-pendant::before {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 1px;
+  height: clamp(11px, 1.4vw, 18px);
+  content: "";
+  background: linear-gradient(#ffe770, rgba(255, 231, 112, 0.22));
+  opacity: 0.52;
+  transform: translateX(-50%);
+  transform-origin: bottom;
+}
+
+.cake-pendant img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #101827;
+}
+
+.cake-pendant span {
+  display: none;
+}
+
+@keyframes pendantSway {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 7px;
+  }
+}
+
+.photo-showcase.is-active {
+  opacity: 1;
+  transform: translateY(-8px) scale(1);
+}
+
+.photo-showcase.is-switching {
+  opacity: 0.38;
+  transform: translateY(22px) scale(0.82) rotate(-1deg);
+}
+
+.photo-frame {
+  position: relative;
+  width: min(58vw, 700px);
+  height: min(66vh, 740px);
+  max-height: calc(100vh - 192px);
+  padding: 14px;
+  overflow: hidden;
+  border-color: rgba(255, 213, 106, 0.82);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(7, 10, 18, 0.34), rgba(7, 10, 18, 0.34)),
+    linear-gradient(135deg, rgba(255, 213, 106, 0.28), rgba(255, 79, 195, 0.16), rgba(54, 245, 255, 0.18));
+  box-shadow:
+    0 0 34px rgba(255, 213, 106, 0.2),
+    0 0 70px rgba(255, 79, 195, 0.16),
+    inset 0 0 32px rgba(255, 255, 255, 0.08);
+}
+
+.photo-frame::before {
+  position: absolute;
+  inset: 7px;
+  content: "";
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+}
+
+.photo-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  background: rgba(4, 7, 14, 0.82);
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.photo-frame span {
+  position: absolute;
+  left: 22px;
+  bottom: 20px;
+  padding: 5px 9px;
+  border: 1px solid rgba(54, 245, 255, 0.46);
+  border-radius: 5px;
+  color: #fff6be;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  background: rgba(5, 7, 13, 0.62);
+}
+
+.status-panel {
+  top: 18px;
+  left: 18px;
+  width: min(330px, calc(100vw - 36px));
+  padding: 14px 16px 13px;
+  border-radius: 8px;
+}
+
+.panel-title {
+  margin-bottom: 10px;
+  color: var(--cyan);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) minmax(80px, auto);
+  gap: 8px 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.status-grid span {
+  color: var(--muted);
+}
+
+.status-grid strong {
+  justify-self: end;
+  max-width: 172px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-message {
+  min-height: 18px;
+  margin-top: 12px;
+  color: var(--gold);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.camera-panel {
+  top: -8px;
+  left: -8px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  border: 0;
+  border-color: rgba(255, 213, 106, 0.72);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+#cameraVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  filter: saturate(1.25) contrast(1.06);
+}
+
+.camera-panel::before {
+  position: absolute;
+  inset: 8px;
+  content: "";
+  border: 1px solid rgba(54, 245, 255, 0.45);
+  pointer-events: none;
+}
+
+.camera-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(54, 245, 255, 0.9), transparent);
+  animation: scan 2.4s linear infinite;
+}
+
+@keyframes scan {
+  from {
+    top: 0;
+  }
+
+  to {
+    top: 100%;
+  }
+}
+
+.birthday-trim {
+  position: fixed;
+  left: 50%;
+  top: 18px;
+  z-index: 4;
+  display: flex;
+  gap: 18px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.birthday-trim span {
+  width: 7px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--gold);
+  box-shadow: 0 0 18px currentColor;
+  animation: fallSpark 3.2s ease-in-out infinite;
+}
+
+.birthday-trim span:nth-child(2) {
+  height: 15px;
+  color: var(--pink);
+  background: var(--pink);
+  animation-delay: 0.35s;
+}
+
+.birthday-trim span:nth-child(3) {
+  height: 26px;
+  color: var(--cyan);
+  background: var(--cyan);
+  animation-delay: 0.7s;
+}
+
+.birthday-trim span:nth-child(4) {
+  height: 17px;
+  color: var(--violet);
+  background: var(--violet);
+  animation-delay: 1.05s;
+}
+
+.birthday-trim span:nth-child(5) {
+  height: 23px;
+  animation-delay: 1.4s;
+}
+
+@keyframes fallSpark {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.52;
+  }
+
+  50% {
+    transform: translateY(13px) rotate(18deg);
+    opacity: 1;
+  }
+}
+
+.gesture-hints {
+  left: 50%;
+  bottom: 18px;
+  display: flex;
+  width: min(1040px, calc(100vw - 36px));
+  min-height: 48px;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-color: rgba(255, 79, 195, 0.45);
+  border-radius: 8px;
+  transform: translateX(-50%);
+}
+
+.gesture-hints span {
+  min-height: 26px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 6px;
+  color: #dfefff;
+  font-size: clamp(11px, 1.25vw, 13px);
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.055);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .status-panel {
+    top: 12px;
+    left: 12px;
+    width: min(290px, calc(100vw - 126px));
+    padding: 11px 12px;
+  }
+
+  .status-grid {
+    grid-template-columns: 74px 1fr;
+    gap: 6px 8px;
+    font-size: 11px;
+  }
+
+  .status-grid strong,
+  .system-message,
+  .panel-title {
+    font-size: 11px;
+  }
+
+  .camera-panel {
+    top: -8px;
+    left: -8px;
+    width: 1px;
+    height: 1px;
+  }
+
+  .birthday-trim {
+    display: none;
+  }
+
+  .photo-frame {
+    width: min(84vw, 520px);
+    height: min(58vh, 560px);
+    max-height: calc(100vh - 178px);
+    padding: 9px;
+  }
+
+  .cake-pendants {
+    width: min(86vw, 520px);
+    height: min(44vh, 370px);
+  }
+
+  .cake-pendant {
+    width: clamp(14px, 4.2vw, 24px);
+    padding: 2px;
+  }
+
+  .gesture-hints {
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    justify-content: flex-start;
+    padding: 8px;
+  }
+
+  .gesture-hints span {
+    white-space: normal;
+  }
+}

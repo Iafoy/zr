@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>生日祝福粒子秀</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="app" aria-label="生日祝福粒子秀">
+      <div id="sceneRoot"></div>
+
+      <section class="status-panel" aria-label="识别状态">
+        <div class="panel-title">Gesture Status</div>
+        <div class="status-grid">
+          <span>检测手数</span><strong id="handCount">0</strong>
+          <span>左手手势</span><strong id="leftGesture">none</strong>
+          <span>右手手势</span><strong id="rightGesture">none</strong>
+          <span>粒子形态</span><strong id="particleMode">初始化</strong>
+          <span>当前照片</span><strong id="photoIndex">-</strong>
+          <span>FPS</span><strong id="fps">0</strong>
+        </div>
+        <div id="systemMessage" class="system-message">等待摄像头权限...</div>
+      </section>
+
+      <section class="camera-panel" aria-label="摄像头预览">
+        <video id="cameraVideo" autoplay muted playsinline></video>
+        <div class="camera-scanline"></div>
+      </section>
+
+      <section id="photoShowcase" class="photo-showcase" aria-label="照片放大展示">
+        <div class="photo-frame">
+          <img id="photoDisplay" alt="生日照片" />
+          <span id="photoCaption">PHOTO 1</span>
+        </div>
+      </section>
+
+      <div id="cakePendants" class="cake-pendants" aria-hidden="true"></div>
+
+      <div class="birthday-trim" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+
+      <footer class="gesture-hints" aria-label="操作提示">
+        <span>单手 1：生日快乐</span>
+        <span>单手 2：大笑脸</span>
+        <span>单手握拳：生日蛋糕</span>
+        <span>单手张开：粒子散开</span>
+        <span>一手握拳 + 一手数字：照片放大</span>
+        <span>握拳 + 张掌：照片模式</span>
+        <span>照片模式捏一下：下一张</span>
+        <span>双手握拳：放烟花</span>
+      </footer>
+    </main>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
