@@ -173,63 +173,70 @@ export function createTextShape(text = "生日快乐", count = 9000) {
   });
 }
 
-export function createSmileShape(count = 9000) {
-  const canvas = createCanvas(900, 900);
+export function createHeartShape(count = 9000) {
+  const canvas = createCanvas(920, 840);
   const ctx = canvas.getContext("2d");
   const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
+  const cy = canvas.height / 2 + 8;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  ctx.lineWidth = 48;
+  const heart = new Path2D();
+  heart.moveTo(cx, cy + 250);
+  heart.bezierCurveTo(cx - 330, cy + 48, cx - 285, cy - 240, cx - 58, cy - 142);
+  heart.bezierCurveTo(cx - 22, cy - 126, cx - 4, cy - 88, cx, cy - 64);
+  heart.bezierCurveTo(cx + 4, cy - 88, cx + 22, cy - 126, cx + 58, cy - 142);
+  heart.bezierCurveTo(cx + 285, cy - 240, cx + 330, cy + 48, cx, cy + 250);
+  heart.closePath();
+
+  const fill = ctx.createRadialGradient(cx - 95, cy - 95, 20, cx, cy + 28, 360);
+  fill.addColorStop(0, "#fff5ff");
+  fill.addColorStop(0.18, "#ff86d7");
+  fill.addColorStop(0.48, "#ff2f91");
+  fill.addColorStop(0.82, "#9a4dff");
+  fill.addColorStop(1, "#35f4ff");
+  ctx.fillStyle = fill;
+  ctx.fill(heart);
+
+  ctx.lineWidth = 34;
   ctx.strokeStyle = "#ffd84a";
-  ctx.beginPath();
-  ctx.arc(cx, cy, 315, 0, TWO_PI);
-  ctx.stroke();
+  ctx.stroke(heart);
 
-  ctx.lineWidth = 18;
+  ctx.lineWidth = 16;
   ctx.strokeStyle = "#ff4fc3";
+  ctx.stroke(heart);
+
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
   ctx.beginPath();
-  ctx.arc(cx, cy, 352, 0, TWO_PI);
+  ctx.moveTo(cx - 112, cy - 82);
+  ctx.bezierCurveTo(cx - 52, cy - 130, cx + 26, cy - 132, cx + 88, cy - 74);
   ctx.stroke();
 
-  ctx.fillStyle = "#35f4ff";
-  ctx.beginPath();
-  ctx.ellipse(cx - 122, cy - 92, 42, 62, -0.08, 0, TWO_PI);
-  ctx.ellipse(cx + 122, cy - 92, 42, 62, 0.08, 0, TWO_PI);
-  ctx.fill();
-
-  ctx.strokeStyle = "#ff4fc3";
-  ctx.lineWidth = 68;
-  ctx.beginPath();
-  ctx.arc(cx, cy + 10, 190, 0.18 * Math.PI, 0.82 * Math.PI);
-  ctx.stroke();
-
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 17;
-  ctx.beginPath();
-  ctx.moveTo(cx - 116, cy + 150);
-  ctx.quadraticCurveTo(cx, cy + 202, cx + 116, cy + 150);
-  ctx.stroke();
-
-  ctx.fillStyle = "#ff7ad9";
-  ctx.beginPath();
-  ctx.arc(cx - 210, cy + 42, 30, 0, TWO_PI);
-  ctx.arc(cx + 210, cy + 42, 30, 0, TWO_PI);
-  ctx.fill();
+  const sparkleColors = ["#ffe16b", "#35f4ff", "#ffffff", "#ff9ee6"];
+  for (let i = 0; i < 54; i += 1) {
+    const angle = Math.random() * TWO_PI;
+    const radius = 80 + Math.random() * 245;
+    const x = cx + Math.cos(angle) * radius * 0.92;
+    const y = cy + Math.sin(angle) * radius * 0.72 + 32;
+    ctx.fillStyle = sparkleColors[i % sparkleColors.length];
+    ctx.beginPath();
+    ctx.arc(x, y, 3 + Math.random() * 5, 0, TWO_PI);
+    ctx.fill();
+  }
 
   return sampleCanvas(canvas, count, {
-    scale: 780,
+    scale: 1120,
     zRange: 60,
     alphaThreshold: 120,
     colorMode: "pixel",
-    density: 0.56,
-    sizeMin: 2.35,
-    sizeMax: 4.25,
-    pointJitter: 0.9,
-    brightnessBoost: 1.0
+    density: 0.48,
+    sizeMin: 2.25,
+    sizeMax: 4.35,
+    pointJitter: 0.75,
+    brightnessBoost: 0.96
   });
 }
 

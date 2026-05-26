@@ -4,7 +4,7 @@ import { GestureController, gestureLabel } from "./gesture.js";
 import {
   PHOTO_PATHS,
   createCakeShape,
-  createSmileShape,
+  createHeartShape,
   createTextShape
 } from "./shapes.js";
 
@@ -16,6 +16,11 @@ const state = {
   lastFireworkAt: 0,
   lastPhotoPinchAt: 0,
   photoPinchDown: false,
+  photoPinchFrames: 0,
+  photoReleaseFrames: 0,
+  photoSwitching: false,
+  photoModeEnteredAt: 0,
+  pendingPhotoIndex: null,
   lastShapeKey: "",
   photoToken: 0,
   fps: 0
@@ -42,7 +47,11 @@ const particles = new ParticleSystem(sceneRoot, { count: particleCount });
 const fireworks = new FireworkSystem(particles.scene);
 
 const shapeCache = new Map();
-const PHOTO_PINCH_COOLDOWN_MS = 950;
+const imagePreloadCache = new Map();
+const PHOTO_PINCH_COOLDOWN_MS = 220;
+const PHOTO_PINCH_CONFIRM_FRAMES = 1;
+const PHOTO_PINCH_RELEASE_FRAMES = 1;
+const PHOTO_MODE_ARM_MS = 0;
 
 function renderCakePendants() {
   const positions = [
@@ -96,21 +105,69 @@ function hidePhotoOverlay() {
   setCakePendantsVisible(false);
 }
 
-function resetPhotoPinch() {
-  state.photoPinchDown = false;
+function cancelPhotoTransition() {
+  state.photoToken += 1;
+  state.photoSwitching = false;
+  state.pendingPhotoIndex = null;
 }
 
-function showPhotoOverlay(index, switching = false) {
+function resetPhotoPinch() {
+  state.photoPinchDown = false;
+  state.photoPinchFrames = 0;
+  state.photoReleaseFrames = 0;
+}
+
+function preloadPhoto(index) {
+  const src = photos[index];
+  if (!imagePreloadCache.has(src)) {
+    imagePreloadCache.set(src, new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = async () => {
+        try {
+          if (image.decode) await image.decode();
+        } catch {
+          // Decoding can fail on already-decoded images; the loaded image is still usable.
+        }
+        resolve(image);
+      };
+      image.onerror = reject;
+      image.src = src;
+    }));
+  }
+  return imagePreloadCache.get(src);
+}
+
+function warmNearbyPhotos(index) {
+  const next = (index + 1) % photos.length;
+  const previous = (index - 1 + photos.length) % photos.length;
+  preloadPhoto(next).catch(() => {});
+  preloadPhoto(previous).catch(() => {});
+}
+
+async function showPhotoOverlay(index, { switching = false, token = null } = {}) {
   if (switching) {
     ui.photoShowcase.classList.add("is-switching");
+    await delay(70);
   }
 
-  window.setTimeout(() => {
+  if (token !== null && token !== state.photoToken) return false;
+
+  try {
+    const image = await preloadPhoto(index);
+    if (token !== null && token !== state.photoToken) return false;
+    ui.photoImage.src = image.src;
+  } catch {
+    if (token !== null && token !== state.photoToken) return false;
     ui.photoImage.src = photos[index];
-    ui.photoCaption.textContent = `PHOTO ${index + 1}`;
-    ui.photoShowcase.classList.remove("is-switching");
-    ui.photoShowcase.classList.add("is-active");
-  }, switching ? 260 : 0);
+  }
+
+  ui.photoCaption.textContent = `PHOTO ${index + 1}`;
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (token !== null && token !== state.photoToken) return false;
+  ui.photoShowcase.classList.remove("is-switching");
+  ui.photoShowcase.classList.add("is-active");
+  await delay(switching ? 110 : 60);
+  return true;
 }
 
 function getCachedShape(key, factory) {
@@ -122,7 +179,10 @@ function getCachedShape(key, factory) {
 
 async function showShape(key, label, factory, options = {}) {
   if (state.lastShapeKey === key) return;
+  cancelPhotoTransition();
   state.photoMode = false;
+  state.photoModeEnteredAt = 0;
+  resetPhotoPinch();
   hidePhotoOverlay();
   updatePhotoUi();
   const points = await getCachedShape(key, factory);
@@ -133,7 +193,9 @@ async function showShape(key, label, factory, options = {}) {
 
 function scatter(label = "自由漂浮", burst = true) {
   if (state.lastShapeKey === "scatter" && !burst) return;
+  cancelPhotoTransition();
   state.photoMode = false;
+  state.photoModeEnteredAt = 0;
   hidePhotoOverlay();
   resetPhotoPinch();
   particles.scatter({ label, burst });
@@ -143,30 +205,57 @@ function scatter(label = "自由漂浮", burst = true) {
 
 async function showPhoto(index, { burst = false, resetToFirst = false } = {}) {
   const normalized = (index + photos.length) % photos.length;
+  if (state.photoSwitching) {
+    state.pendingPhotoIndex = normalized;
+    return;
+  }
+
+  const enteringPhotoMode = !state.photoMode;
   const key = `photo-direct-${normalized}`;
   const token = ++state.photoToken;
+  const now = performance.now();
 
+  state.photoSwitching = true;
   state.photoMode = true;
   state.currentPhotoIndex = normalized;
+  if (enteringPhotoMode || resetToFirst) {
+    state.photoModeEnteredAt = now;
+    state.lastPhotoPinchAt = now;
+    resetPhotoPinch();
+  }
   updatePhotoUi();
+  warmNearbyPhotos(normalized);
 
-  if (burst) {
-    showPhotoOverlay(normalized, true);
-    await delay(260);
+  try {
+    const overlayPromise = showPhotoOverlay(normalized, { switching: burst, token });
+
+    if (token !== state.photoToken) return;
+
+    const cakePoints = await getCachedShape("cake-pendants", () => createCakeShape(particles.count));
+
+    if (token !== state.photoToken) return;
+
+    particles.setTarget(cakePoints, { label: "照片挂坠蛋糕", jitter: 0.35 });
+    setCakePendantsVisible(true, true);
+    await overlayPromise;
+    if (token !== state.photoToken) return;
+    setMode(resetToFirst ? "照片模式" : `照片 ${normalized + 1}`, key);
+    setMessage("照片模式：轻捏一下马上切换下一张");
+  } catch (error) {
+    console.warn("Photo switch failed:", error);
+    if (token === state.photoToken) {
+      setMessage("照片切换失败，请检查图片路径");
+    }
+  } finally {
+    if (token === state.photoToken) {
+      state.photoSwitching = false;
+      const pendingIndex = state.pendingPhotoIndex;
+      state.pendingPhotoIndex = null;
+      if (pendingIndex !== null && pendingIndex !== state.currentPhotoIndex) {
+        window.setTimeout(() => showPhoto(pendingIndex, { burst: true }), 0);
+      }
+    }
   }
-
-  if (token !== state.photoToken) return;
-
-  const cakePoints = await getCachedShape("cake-pendants", () => createCakeShape(particles.count));
-
-  if (token !== state.photoToken) return;
-  particles.setTarget(cakePoints, { label: "照片挂坠蛋糕", jitter: 0.35 });
-  setCakePendantsVisible(true, true);
-  if (!burst) {
-    showPhotoOverlay(normalized, false);
-  }
-  setMode(resetToFirst ? "照片模式" : `照片 ${normalized + 1}`, key);
-  setMessage("照片模式：照片直接放大显示，捏一下切换下一张");
 }
 
 function handleSingleHand(snapshot) {
@@ -178,7 +267,7 @@ function handleSingleHand(snapshot) {
       showShape("text-birthday", "生日快乐", () => createTextShape("生日快乐", particles.count), { jitter: 0.18, motion: "bounce" });
       break;
     case "two":
-      showShape("smile", "大笑脸", () => createSmileShape(particles.count), { jitter: 0.45 });
+      showShape("heart", "跳动爱心", () => createHeartShape(particles.count), { jitter: 0.35, motion: "heartbeat" });
       break;
     case "fist":
       showShape("cake", "生日蛋糕", () => createCakeShape(particles.count), { jitter: 0.45 });
@@ -194,8 +283,7 @@ function handleSingleHand(snapshot) {
 function findHands(snapshot) {
   return {
     fists: snapshot.hands.filter((hand) => hand.gesture === "fist"),
-    opens: snapshot.hands.filter((hand) => hand.gesture === "open"),
-    digits: snapshot.hands.filter((hand) => ["one", "two", "three"].includes(hand.gesture))
+    opens: snapshot.hands.filter((hand) => hand.gesture === "open")
   };
 }
 
@@ -211,15 +299,26 @@ function handlePhotoPinch(snapshot, now = performance.now()) {
 
   const pinching = hasPinch(snapshot);
   if (!pinching) {
-    resetPhotoPinch();
+    state.photoReleaseFrames += 1;
+    state.photoPinchFrames = 0;
+    if (state.photoReleaseFrames >= PHOTO_PINCH_RELEASE_FRAMES) {
+      state.photoPinchDown = false;
+    }
     return false;
   }
 
-  if (!state.photoPinchDown && now - state.lastPhotoPinchAt > PHOTO_PINCH_COOLDOWN_MS) {
+  state.photoPinchFrames += 1;
+  state.photoReleaseFrames = 0;
+
+  const confirmedPinch = state.photoPinchFrames >= PHOTO_PINCH_CONFIRM_FRAMES;
+  const cooldownReady = now - state.lastPhotoPinchAt > PHOTO_PINCH_COOLDOWN_MS;
+  const modeArmed = now - state.photoModeEnteredAt > PHOTO_MODE_ARM_MS;
+
+  if (confirmedPinch && !state.photoPinchDown && cooldownReady && modeArmed) {
     state.photoPinchDown = true;
     state.lastPhotoPinchAt = now;
     showPhoto((state.currentPhotoIndex + 1) % photos.length, { burst: true });
-    setMessage("捏合切换下一张照片");
+    setMessage("轻捏触发，切换下一张照片");
   }
 
   return true;
@@ -227,9 +326,7 @@ function handlePhotoPinch(snapshot, now = performance.now()) {
 
 function handleTwoHands(snapshot) {
   const now = performance.now();
-  const { fists, opens, digits } = findHands(snapshot);
-
-  if (handlePhotoPinch(snapshot, now)) return;
+  const { fists, opens } = findHands(snapshot);
 
   if (fists.length >= 2) {
     if (now - state.lastFireworkAt > 1300) {
@@ -246,22 +343,13 @@ function handleTwoHands(snapshot) {
     return;
   }
 
-  if (fists.length === 1 && digits.length === 1) {
-    const digitToIndex = { one: 0, two: 1, three: 2 };
-    const targetIndex = digitToIndex[digits[0].gesture] ?? 0;
-    if (!state.photoMode || state.currentPhotoIndex !== targetIndex) {
-      showPhoto(targetIndex, { burst: state.photoMode });
-    }
-    return;
-  }
-
   if (fists.length === 1 && opens.length === 1) {
     if (!state.photoMode) {
       showPhoto(0, { burst: false, resetToFirst: true });
       return;
     }
 
-    setMessage("照片模式：捏一下切换下一张");
+    setMessage("照片模式：轻捏一下马上切换下一张");
   }
 }
 
@@ -271,6 +359,10 @@ function handleGesture(snapshot) {
   ui.rightGesture.textContent = gestureLabel(snapshot.rightGesture);
 
   if (handlePhotoPinch(snapshot, snapshot.timestamp)) return;
+  if (state.photoMode && snapshot.handCount < 2) {
+    setMessage("照片模式：轻捏一下马上切换下一张");
+    return;
+  }
 
   if (snapshot.handCount === 1) {
     handleSingleHand(snapshot);
@@ -283,7 +375,7 @@ function bindKeyboardDemo() {
   window.addEventListener("keydown", (event) => {
     const key = event.key.toLowerCase();
     if (key === "1") showShape("text-birthday", "生日快乐", () => createTextShape("生日快乐", particles.count), { jitter: 0.18, motion: "bounce" });
-    if (key === "2") showShape("smile", "大笑脸", () => createSmileShape(particles.count), { jitter: 0.45 });
+    if (key === "2") showShape("heart", "跳动爱心", () => createHeartShape(particles.count), { jitter: 0.35, motion: "heartbeat" });
     if (key === "3") showShape("cake", "生日蛋糕", () => createCakeShape(particles.count), { jitter: 0.45 });
     if (key === " ") scatter("祝福星云", true);
     if (key === "f") fireworks.launchShow();

@@ -250,12 +250,18 @@ export class ParticleSystem {
     for (let i = 0; i < this.count; i += 1) {
       const index = i * 3;
       const seed = this.seeds[i];
-      const tx = this.targetPositions[index];
+      const heartbeat = this.motionMode === "heartbeat"
+        ? Math.pow(Math.max(0, Math.sin(elapsed * 5.4)), 2) + Math.pow(Math.max(0, Math.sin(elapsed * 10.8 + 0.72)), 2) * 0.42
+        : 0;
+      const motionScale = this.motionMode === "heartbeat" ? 1 + heartbeat * 0.07 : 1;
+      const tx = this.targetPositions[index] * motionScale;
       const bounce = this.motionMode === "bounce"
         ? Math.sin(elapsed * 4.4) * 10 + Math.sin(elapsed * 8.8) * 2
-        : 0;
-      const ty = this.targetPositions[index + 1] + bounce;
-      const tz = this.targetPositions[index + 2];
+        : this.motionMode === "heartbeat"
+          ? heartbeat * 16
+          : 0;
+      const ty = this.targetPositions[index + 1] * motionScale + bounce;
+      const tz = this.targetPositions[index + 2] * motionScale;
 
       const swirlX = Math.sin(elapsed * 0.75 + seed * 16.0) * 0.028 * dt;
       const swirlY = Math.cos(elapsed * 0.68 + seed * 12.0) * 0.028 * dt;
